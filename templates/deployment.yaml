@@ -226,7 +226,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
-          {{- if or $serviceEnabled $apiServerEnabled }}
+          {{- if or (and $serviceEnabled (gt (len $servicePorts) 0)) $apiServerEnabled }}
           ports:
             {{- if $serviceEnabled }}
             {{- range $i, $port := $servicePorts }}
