@@ -159,7 +159,6 @@ secrets:
 
 externalSecret:
   enabled: false
-  name: ""
   refreshInterval: 1h
   secretStoreRef:
     kind: ClusterSecretStore
@@ -280,7 +279,8 @@ tenantIsolation:
   networkPolicy:
     enabled: false
     allowSameNamespace: true
-    allowedNamespaceSelector: {}
+    authorizedNamespaces: []
+    allowDns: true
     additionalIngress: []
     additionalEgress: []
 

@@ -132,6 +132,76 @@
         "API_SERVER_KEY": { "type": "string" },
         "TELEGRAM_BOT_TOKEN": { "type": "string" }
       }
+    },
+    "externalSecret": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "refreshInterval": { "type": "string", "minLength": 1 },
+        "secretStoreRef": {
+          "type": "object",
+          "properties": {
+            "kind": { "type": "string", "minLength": 1 },
+            "name": { "type": "string" }
+          }
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "creationPolicy": { "type": "string", "minLength": 1 },
+            "deletionPolicy": { "type": "string", "minLength": 1 }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "dataFrom": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "tenantIsolation": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "tenantId": { "type": "string" },
+        "labelKey": { "type": "string", "minLength": 1 },
+        "labels": { "type": "object" },
+        "podAntiAffinity": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "type": {
+              "type": "string",
+              "enum": ["preferredDuringSchedulingIgnoredDuringExecution", "requiredDuringSchedulingIgnoredDuringExecution"]
+            },
+            "topologyKey": { "type": "string", "minLength": 1 }
+          }
+        },
+        "networkPolicy": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "allowSameNamespace": { "type": "boolean" },
+            "authorizedNamespaces": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "allowDns": { "type": "boolean" },
+            "additionalIngress": {
+              "type": "array",
+              "items": { "type": "object" }
+            },
+            "additionalEgress": {
+              "type": "array",
+              "items": { "type": "object" }
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -263,6 +333,67 @@
             "properties": {
               "gateways": { "minItems": 1 },
               "hosts": { "minItems": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "externalSecret": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "externalSecret": {
+            "type": "object",
+            "properties": {
+              "secretStoreRef": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 }
+                }
+              }
+            },
+            "anyOf": [
+              {
+                "properties": {
+                  "data": { "type": "array", "minItems": 1 }
+                }
+              },
+              {
+                "properties": {
+                  "dataFrom": { "type": "array", "minItems": 1 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "tenantIsolation": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "tenantIsolation": {
+            "type": "object",
+            "properties": {
+              "tenantId": { "type": "string", "minLength": 1 }
             }
           }
         }

@@ -18,6 +18,7 @@
 {{- $bootstrapConfigMapName := include "hermes-agent.bootstrapConfigMapName" . -}}
 {{- $bootstrapConfigPath := printf "/bootstrap/%s" .Values.bootstrap.configKey -}}
 {{- $bootstrapSoulPath := printf "/bootstrap/%s" .Values.bootstrap.soulKey -}}
+{{- $affinity := deepCopy (.Values.affinity | default dict) -}}
 {{- $hasGeneratedSecret := false -}}
 {{- range $key, $value := .Values.secrets }}
   {{- if and (ne $key "existingSecret") (ne $key "annotations") (ne (printf "%v" $value) "") -}}
@@ -35,6 +36,17 @@
 {{- end }}
 {{- if and .Values.telegramWebhook.enabled (not .Values.secrets.existingSecret) (eq (printf "%v" .Values.secrets.TELEGRAM_BOT_TOKEN) "") }}
 {{- fail "telegramWebhook.enabled requires secrets.TELEGRAM_BOT_TOKEN when secrets.existingSecret is not set" }}
+{{- end }}
+{{- if and .Values.tenantIsolation.enabled (not .Values.tenantIsolation.tenantId) }}
+{{- fail "tenantIsolation.enabled=true requires tenantIsolation.tenantId" }}
+{{- end }}
+{{- if and .Values.tenantIsolation.enabled .Values.tenantIsolation.podAntiAffinity.enabled }}
+  {{- $tenantTerm := dict "topologyKey" .Values.tenantIsolation.podAntiAffinity.topologyKey "labelSelector" (dict "matchExpressions" (list (dict "key" (include "hermes-agent.tenantLabelKey" .) "operator" "In" "values" (list .Values.tenantIsolation.tenantId)))) -}}
+  {{- if eq .Values.tenantIsolation.podAntiAffinity.type "requiredDuringSchedulingIgnoredDuringExecution" }}
+    {{- $_ := set $affinity "podAntiAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" (list $tenantTerm)) -}}
+  {{- else }}
+    {{- $_ := set $affinity "podAntiAffinity" (dict "preferredDuringSchedulingIgnoredDuringExecution" (list (dict "weight" 100 "podAffinityTerm" $tenantTerm))) -}}
+  {{- end }}
 {{- end }}
 {{- $npmHash := "" -}}
 {{- if $npmEnabled -}}
@@ -309,7 +321,7 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with $affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}

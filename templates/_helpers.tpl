@@ -102,7 +102,18 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "hermes-agent.primaryServicePortNumber" -}}
-{{- $servicePorts := include "hermes-agent.servicePorts" . | fromJson -}}
+{{- $servicePorts := .Values.service.ports -}}
+{{- if eq (len $servicePorts) 0 -}}
+  {{- if .Values.apiServer.enabled -}}
+    {{- $servicePorts = append $servicePorts (dict "name" "api-server" "port" (.Values.apiServer.port | int) "targetPort" (.Values.apiServer.port | int) "containerPort" (.Values.apiServer.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+  {{- if .Values.webhook.enabled -}}
+    {{- $servicePorts = append $servicePorts (dict "name" "webhook" "port" (.Values.webhook.port | int) "targetPort" (.Values.webhook.port | int) "containerPort" (.Values.webhook.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+  {{- if .Values.telegramWebhook.enabled -}}
+    {{- $servicePorts = append $servicePorts (dict "name" "telegram-webhook" "port" (.Values.telegramWebhook.port | int) "targetPort" (.Values.telegramWebhook.port | int) "containerPort" (.Values.telegramWebhook.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+{{- end -}}
 {{- if and .Values.service.enabled (gt (len $servicePorts) 0) -}}
 {{- (index $servicePorts 0).port -}}
 {{- else -}}

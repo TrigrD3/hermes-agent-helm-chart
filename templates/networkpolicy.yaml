@@ -1,4 +1,6 @@
-{{- if .Values.networkPolicy.enabled }}
+{{- $tenantNp := .Values.tenantIsolation.networkPolicy -}}
+{{- $tenantEnabled := and .Values.tenantIsolation.enabled $tenantNp.enabled -}}
+{{- if or .Values.networkPolicy.enabled $tenantEnabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -10,13 +12,55 @@ spec:
     matchLabels:
       {{- include "hermes-agent.selectorLabels" . | nindent 6 }}
   policyTypes:
+    {{- if .Values.networkPolicy.enabled }}
     {{- toYaml .Values.networkPolicy.policyTypes | nindent 4 }}
-  {{- with .Values.networkPolicy.ingress }}
+    {{- else }}
+    - Ingress
+    - Egress
+    {{- end }}
+  {{- if or .Values.networkPolicy.ingress $tenantEnabled }}
   ingress:
+    {{- if $tenantEnabled }}
+    {{- if $tenantNp.allowSameNamespace }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace | quote }}
+    {{- end }}
+    {{- range $tenantNp.authorizedNamespaces }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+    {{- end }}
+    {{- with $tenantNp.additionalIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.networkPolicy.ingress }}
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with .Values.networkPolicy.egress }}
+  {{- end }}
+  {{- if or .Values.networkPolicy.egress $tenantEnabled }}
   egress:
+    {{- if $tenantEnabled }}
+    {{- if $tenantNp.allowDns }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- end }}
+    {{- with $tenantNp.additionalEgress }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+    {{- with .Values.networkPolicy.egress }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- end }}
 {{- end }}
