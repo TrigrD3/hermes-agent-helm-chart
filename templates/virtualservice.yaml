@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- if .Values.virtualService.enabled }}
 {{- if not .Values.service.enabled }}
 {{- fail "virtualService.enabled=true requires service.enabled=true" }}
@@ -44,4 +45,5 @@ spec:
             port:
               number: {{ default (include "hermes-agent.primaryServicePortNumber" .) .Values.virtualService.servicePortNumber }}
       timeout: {{ .Values.virtualService.timeout | quote }}
+{{- end }}
 {{- end }}

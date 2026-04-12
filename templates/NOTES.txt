@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 Hermes Agent has been installed.
 
 Release: {{ .Release.Name }}
@@ -25,3 +26,4 @@ Useful commands:
   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -f
   kubectl exec -it -n {{ .Release.Namespace }} deploy/{{ include "hermes-agent.fullname" . }} -- hermes version
   kubectl exec -it -n {{ .Release.Namespace }} deploy/{{ include "hermes-agent.fullname" . }} -- sh
+{{- end }}

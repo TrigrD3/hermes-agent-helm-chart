@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- if not .Values.bootstrap.existingConfigMap }}
 apiVersion: v1
 kind: ConfigMap
@@ -16,4 +17,5 @@ data:
   {{ .Values.bootstrap.soulKey }}: |
     {{- tpl .Values.soul.text . | nindent 4 }}
   {{- end }}
+{{- end }}
 {{- end }}

@@ -177,6 +177,14 @@ externalSecret:
   annotations: {}
   labels: {}
 
+operator:
+  enabled: false
+  controllerClass: hermes.ai/default
+  installCustomResources: true
+  managementNamespace: ""
+  defaultChartValues: {}
+  tenants: []
+
 tenant:
   id: ""
   labels: {}

@@ -79,7 +79,41 @@ Operator-ready mode is for platform teams that want Helm to establish the **cust
 - A compatible controller is still required to turn those CRs into running Hermes workloads.
 - Direct deployment mode remains the safer default when Helm should continue owning the workload lifecycle end to end.
 
-Planned operator-ready documentation for this pass should stay conservative: describe the CRD/CR workflow, keep the unofficial disclaimer visible, and avoid implying that this repository ships a controller binary.
+This repository still does **not** bundle a controller binary. Operator-ready support here means CRDs + CR templates + documentation for use with a separate controller.
+
+## Custom resources and operator-ready flow
+
+The chart now ships a `HermesTenant` CRD (`hermestenants.hermes.ai`) and an optional operator-mode renderer.
+
+Use operator-ready mode when:
+- your platform runs a separate controller that reconciles `HermesTenant` resources
+- you want a CRD/API surface for tenant lifecycle instead of direct Helm-managed workloads
+
+Key behavior:
+- direct mode remains the default
+- `operator.enabled=true` renders `HermesTenant` resources from `operator.tenants`
+- direct workload templates are suppressed in operator mode so the chart can serve as a CRD/CR producer
+- each tenant CR still represents **one Hermes instance per tenant boundary**
+
+Example operator-mode values:
+
+```yaml
+operator:
+  enabled: true
+  controllerClass: hermes.ai/default
+  tenants:
+    - name: hermes-tenant-a
+      namespace: tenant-a
+      tenantId: tenant-a
+      chartValues:
+        tenant:
+          id: tenant-a
+        apiServer:
+          enabled: true
+          port: 8642
+```
+
+The CRD is intentionally generic: it records tenant metadata, desired release identity, controller class, and arbitrary chart values for a controller to reconcile.
 
 ## Multi-tenant isolation pattern
 
@@ -148,11 +182,10 @@ The chart supports two secret-management modes:
 1. **Chart-managed Secret** via `secrets.*`
 2. **Externally managed Secret** via `secrets.existingSecret`
 
-For External Secrets Operator, the usual pattern is:
+For External Secrets Operator, the chart now supports two patterns:
 
-- create an `ExternalSecret` that materializes a Kubernetes Secret
-- point `secrets.existingSecret` at that Secret
-- optionally render the `ExternalSecret` from this chart via `extraObjects`
+- render a first-class `ExternalSecret` with `externalSecret.enabled=true`
+- or continue pointing `secrets.existingSecret` at a Secret created by an external operator or another chart
 
 Example using a pre-created Secret:
 

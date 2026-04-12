@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- if .Values.ingress.enabled }}
 {{- if not .Values.service.enabled }}
 {{- fail "ingress.enabled=true requires service.enabled=true" }}
@@ -51,4 +52,5 @@ spec:
                   number: {{ default $defaultPort .servicePortNumber }}
           {{- end }}
     {{- end }}
+{{- end }}
 {{- end }}

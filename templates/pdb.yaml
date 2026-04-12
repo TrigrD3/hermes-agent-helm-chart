@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- if .Values.pdb.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -10,4 +11,5 @@ spec:
   selector:
     matchLabels:
       {{- include "hermes-agent.selectorLabels" . | nindent 6 }}
+{{- end }}
 {{- end }}

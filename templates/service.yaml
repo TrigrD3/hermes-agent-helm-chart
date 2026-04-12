@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- if .Values.service.enabled }}
 {{- $servicePorts := .Values.service.ports }}
 {{- if eq (len $servicePorts) 0 }}
@@ -55,4 +56,5 @@ spec:
     {{- end }}
   selector:
     {{- include "hermes-agent.selectorLabels" . | nindent 4 }}
+{{- end }}
 {{- end }}

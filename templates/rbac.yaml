@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- if and .Values.rbac.create (gt (len .Values.rbac.rules) 0) -}}
 {{- $name := include "hermes-agent.fullname" . -}}
 {{- if .Values.rbac.clusterWide -}}
@@ -70,3 +71,4 @@ roleRef:
 {{- else if and .Values.rbac.create (eq (len .Values.rbac.rules) 0) -}}
 {{- fail "rbac.create=true requires at least one rule in rbac.rules" -}}
 {{- end -}}
+{{- end }}

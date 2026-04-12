@@ -1,3 +1,4 @@
+{{- if not .Values.operator.enabled }}
 {{- $replicas := int .Values.replicaCount -}}
 {{- $mountPath := .Values.persistence.mountPath -}}
 {{- $serviceEnabled := .Values.service.enabled -}}
@@ -334,3 +335,4 @@ spec:
       topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}

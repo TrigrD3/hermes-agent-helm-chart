@@ -56,6 +56,7 @@ pass helm lint . -f ci/external-bootstrap-values.yaml
 pass helm lint . -f ci/default-service-ports-values.yaml
 pass helm lint . -f ci/external-secret-values.yaml
 pass helm lint . -f ci/tenant-isolation-values.yaml
+pass helm lint . -f ci/operator-values.yaml
 pass helm template hermes . >"$TMP_DIR/default.yaml"
 pass helm template hermes . -f ci/test-values.yaml >"$TMP_DIR/test-values.yaml"
 pass helm template hermes . -f ci/existing-claim-values.yaml >"$TMP_DIR/existing-claim.yaml"
@@ -63,6 +64,7 @@ pass helm template hermes . -f ci/external-bootstrap-values.yaml >"$TMP_DIR/exte
 pass helm template hermes . -f ci/default-service-ports-values.yaml >"$TMP_DIR/default-service-ports.yaml"
 pass helm template hermes . -f ci/external-secret-values.yaml >"$TMP_DIR/external-secret.yaml"
 pass helm template hermes . -f ci/tenant-isolation-values.yaml >"$TMP_DIR/tenant-isolation.yaml"
+pass helm template hermes . -f ci/operator-values.yaml >"$TMP_DIR/operator.yaml"
 
 expect_render_contains \
   "external bootstrap fixture points at the external ConfigMap" \
@@ -139,6 +141,16 @@ expect_render_contains \
   'istio-system/tenant-gateway' \
   "$TMP_DIR/tenant-isolation.yaml"
 echo "PASS: tenant-isolation fixture renders tenant isolation plus controller/ingress/Istio configuration"
+
+expect_render_contains   "operator fixture renders HermesTenant custom resource"   'kind: HermesTenant'   "$TMP_DIR/operator.yaml"
+expect_render_contains   "operator fixture renders HermesTenant apiVersion"   'apiVersion: hermes.ai/v1alpha1'   "$TMP_DIR/operator.yaml"
+expect_render_contains   "operator fixture renders tenant release namespace"   'namespace: "tenant-a"'   "$TMP_DIR/operator.yaml"
+if grep -q '^kind: Deployment$' "$TMP_DIR/operator.yaml"; then
+  echo "FAIL: operator fixture should not render direct deployment resources"
+  exit 1
+fi
+echo "PASS: operator fixture renders CRs without direct workload resources"
+
 
 expect_fail \
   "telegram webhook URL required" \
