@@ -42,6 +42,15 @@ config:
       default: anthropic/claude-opus-4.6
 ```
 
+## Live kubectl snapshot
+
+This screenshot was captured from a local `kind` cluster (`kind-hermes-test`) after installing a demo release named `hermes-demo` into the `hermes-demo` namespace.
+
+> [!TIP]
+> For this live local capture I used `image.tag=latest`, because the chart's default `0.8.0` image tag was not available from Docker Hub in this environment.
+
+![kubectl snapshot from a local Hermes Agent deployment on kind](docs/images/kubectl-kind-hermes-demo.png)
+
 ## Core chart behavior
 
 ### Hermes state safety
