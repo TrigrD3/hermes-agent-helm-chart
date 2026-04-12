@@ -5,13 +5,22 @@
 
 This chart packages Hermes Agent for Kubernetes with cloud-native defaults, explicit state-safety guardrails, and flexible composition points for platform teams.
 
+## Deployment modes
+
+- **Direct deployment mode** is the current default: Helm renders the Hermes `Deployment`, storage, secrets, service, ingress, Istio, and supporting resources directly.
+- **Operator-ready mode** is the API-first path for this pass: the chart can define Hermes tenant/operator CRDs and optional tenant custom resources for clusters that run a compatible controller.
+
+> [!NOTE]
+> This chart remains unofficial in both modes. Operator-ready support should be treated as an additive integration surface, not as proof that an operator/controller is bundled here. If your cluster does not already run a compatible controller, stay on direct deployment mode.
+
 ## What this chart is optimized for
 
 - **State-safe Hermes deployments**: `replicaCount: 1` plus `strategy.type: Recreate` are enforced when persistence is enabled so `HERMES_HOME` is not shared unsafely.
 - **Gateway-first runtime**: the default command is `hermes gateway run`, with optional API server, webhook, and Telegram webhook listeners.
 - **Cloud-native integration**: optional Service, Ingress, Istio `VirtualService`, RBAC, NetworkPolicy, PDB, and arbitrary `extraObjects`.
 - **Composable secrets and bootstrap**: use chart-managed Secret/ConfigMap resources, or reuse externally managed ones with `secrets.existingSecret` and `bootstrap.existingConfigMap`.
-- **Tenant-scoped operation**: the chart is best run as one Helm release per tenant, with per-tenant namespaces, PVCs, service accounts, secrets, and traffic policy.
+- **Tenant-scoped operation**: the chart is best run as one Helm release per tenant in direct mode, or one tenant custom resource per tenant boundary in operator-ready mode.
+- **Explicit unofficial positioning**: README guidance keeps the community-maintained status obvious so platform teams can evaluate risk deliberately.
 
 ## Quick start
 
@@ -62,9 +71,19 @@ The chart exposes four main configuration layers:
 - `bootstrap.existingConfigMap` reuses externally managed bootstrap content instead of rendering a chart-owned ConfigMap
 - `npmPackages` installs extra Node packages into the persistent volume and exposes them through `PATH` / `NODE_PATH`
 
+## Operator-ready mode
+
+Operator-ready mode is for platform teams that want Helm to establish the **custom resource API surface** while a separate controller reconciles Hermes tenants. Keep these boundaries in mind:
+
+- Helm/this chart can define the CRDs and optionally render tenant CR objects from values.
+- A compatible controller is still required to turn those CRs into running Hermes workloads.
+- Direct deployment mode remains the safer default when Helm should continue owning the workload lifecycle end to end.
+
+Planned operator-ready documentation for this pass should stay conservative: describe the CRD/CR workflow, keep the unofficial disclaimer visible, and avoid implying that this repository ships a controller binary.
+
 ## Multi-tenant isolation pattern
 
-This chart does not model multi-tenancy inside a single Hermes pod. Instead, the safe pattern is **one release per tenant**.
+This chart does not model multi-tenancy inside a single Hermes pod. Instead, the safe pattern is **one release per tenant** in direct mode, or one tenant custom resource per tenant boundary in operator-ready mode.
 
 Recommended per-tenant isolation boundaries:
 
@@ -292,3 +311,5 @@ helm template hermes . -f ci/external-bootstrap-values.yaml
 helm template hermes . -f ci/default-service-ports-values.yaml
 bash ci/verify.sh
 ```
+
+Planned operator-ready coverage for this pass should also include a dedicated operator fixture (for example `ci/operator-values.yaml`) plus matching `helm lint` / `helm template` checks once those manifests land.
