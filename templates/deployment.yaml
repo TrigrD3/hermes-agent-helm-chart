@@ -1,0 +1,255 @@
+{{- $replicas := int .Values.replicaCount -}}
+{{- if and (gt $replicas 1) .Values.persistence.enabled -}}
+{{- fail "Hermes Agent supports only one replica when persistence.enabled=true because /opt/data contains mutable shared state" -}}
+{{- end -}}
+{{- if and .Values.apiServer.enabled (not .Values.secrets.existingSecret) (eq (printf "%v" .Values.secrets.API_SERVER_KEY) "") -}}
+{{- fail "apiServer.enabled requires secrets.API_SERVER_KEY when secrets.existingSecret is not set" -}}
+{{- end -}}
+{{- $serviceEnabled := or .Values.service.enabled .Values.apiServer.enabled -}}
+{{- $servicePort := include "hermes-agent.servicePort" . | int -}}
+{{- $npmEnabled := gt (len .Values.npmPackages) 0 -}}
+{{- $npmHash := "" -}}
+{{- if $npmEnabled -}}
+{{- $npmHash = sha256sum (join "," .Values.npmPackages) -}}
+{{- end -}}
+{{- $overwrite := ternary "true" "false" .Values.bootstrap.overwrite -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hermes-agent.fullname" . }}
+  labels:
+    {{- include "hermes-agent.labels" . | nindent 4 }}
+  {{- with .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+  selector:
+    matchLabels:
+      {{- include "hermes-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "hermes-agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if not .Values.secrets.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "hermes-agent.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        {{- if .Values.bootstrap.enabled }}
+        - name: bootstrap-config
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              set -eu
+              mkdir -p /opt/data/home
+              if [ -f /bootstrap/config.yaml ]; then
+                if [ "{{ $overwrite }}" = "true" ] || [ ! -f /opt/data/config.yaml ]; then
+                  cp /bootstrap/config.yaml /opt/data/config.yaml
+                fi
+              fi
+              {{- if .Values.soul.text }}
+              if [ -f /bootstrap/SOUL.md ]; then
+                if [ "{{ $overwrite }}" = "true" ] || [ ! -f /opt/data/SOUL.md ]; then
+                  cp /bootstrap/SOUL.md /opt/data/SOUL.md
+                fi
+              fi
+              {{- end }}
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: bootstrap
+              mountPath: /bootstrap
+              readOnly: true
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+        {{- end }}
+        {{- if $npmEnabled }}
+        - name: npm-install
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              set -eu
+              mkdir -p /opt/data/home /opt/data/npm-global
+              hash_file="/opt/data/npm-global/.helm-npm-packages-hash"
+              desired_hash="{{ $npmHash }}"
+              current_hash=""
+              if [ -f "$hash_file" ]; then
+                current_hash="$(cat "$hash_file" 2>/dev/null || true)"
+              fi
+              if [ "$current_hash" != "$desired_hash" ]; then
+                npm install --global --prefix /opt/data/npm-global {{- range .Values.npmPackages }} {{ . | quote }}{{- end }}
+                npm cache clean --force || true
+                printf '%s\n' "$desired_hash" > "$hash_file"
+              fi
+          env:
+            - name: HOME
+              value: /opt/data/home
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+        {{- end }}
+        {{- with .Values.extraInitContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: hermes-agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            {{- toYaml .Values.args | nindent 12 }}
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HOME
+              value: /opt/data/home
+            {{- if $npmEnabled }}
+            - name: PATH
+              value: /opt/data/npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            - name: NODE_PATH
+              value: /opt/data/npm-global/lib/node_modules
+            - name: NPM_CONFIG_PREFIX
+              value: /opt/data/npm-global
+            {{- end }}
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ printf "%v" $value | quote }}
+            {{- end }}
+            {{- if .Values.apiServer.enabled }}
+            - name: API_SERVER_ENABLED
+              value: "true"
+            - name: API_SERVER_HOST
+              value: {{ .Values.apiServer.host | quote }}
+            - name: API_SERVER_PORT
+              value: {{ .Values.apiServer.port | quote }}
+            - name: API_SERVER_CORS_ORIGINS
+              value: {{ .Values.apiServer.corsOrigins | quote }}
+            - name: API_SERVER_MODEL_NAME
+              value: {{ .Values.apiServer.modelName | quote }}
+            {{- end }}
+          {{- if .Values.secrets.existingSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secrets.existingSecret }}
+          {{- else }}
+          envFrom:
+            - secretRef:
+                name: {{ include "hermes-agent.secretName" . }}
+                optional: true
+          {{- end }}
+          ports:
+            {{- if $serviceEnabled }}
+            - name: http
+              containerPort: {{ $servicePort }}
+              protocol: TCP
+            {{- end }}
+          {{- if and .Values.apiServer.enabled .Values.probes.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+            successThreshold: {{ .Values.probes.liveness.successThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+            successThreshold: {{ .Values.probes.readiness.successThreshold }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+            successThreshold: {{ .Values.probes.startup.successThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: dshm
+              mountPath: /dev/shm
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- with .Values.extraContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "hermes-agent.pvcName" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: bootstrap
+          configMap:
+            name: {{ include "hermes-agent.configMapName" . }}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.shmSize | quote }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

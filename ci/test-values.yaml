@@ -1,0 +1,106 @@
+fullnameOverride: hermes-test
+
+gatewayMode: true
+
+secrets:
+  data:
+    OPENROUTER_API_KEY: sk-test
+    TELEGRAM_BOT_TOKEN: bot-test
+
+serviceAccount:
+  create: true
+  automountServiceAccountToken: true
+
+rbac:
+  create: true
+  clusterWide: false
+  rules:
+    - apiGroups: [""]
+      resources:
+        - pods
+        - pods/log
+        - configmaps
+        - secrets
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources:
+        - deployments
+      verbs: ["get", "list", "watch"]
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 8080
+      targetPort: 8080
+    - name: webhook
+      port: 8081
+      targetPort: 8081
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: hermes.example.test
+      paths:
+        - path: /
+          pathType: Prefix
+
+virtualService:
+  enabled: true
+  gateways:
+    - mesh
+  hosts:
+    - hermes.example.test
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+env:
+  WEB_TOOLS_DEBUG: "false"
+  VISION_TOOLS_DEBUG: "false"
+  HERMES_HUMAN_DELAY_MODE: natural
+
+npmPackages:
+  - lodash@4.17.21
+
+probes:
+  liveness:
+    exec:
+      command:
+        - sh
+        - -c
+        - test -d /opt/data
+  readiness:
+    exec:
+      command:
+        - sh
+        - -c
+        - test -d /opt/data
+
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: hermes-extra
+    data:
+      example: "true"

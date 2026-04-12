@@ -1,0 +1,27 @@
+Hermes Agent has been deployed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+{{- if .Values.gatewayMode }}
+Mode: gateway
+{{- else if .Values.command }}
+Mode: custom command
+{{- else }}
+Mode: CLI
+{{- end }}
+
+{{- if .Values.service.enabled }}
+Service: {{ include "hermes-agent.fullname" . }}
+{{- else }}
+No Service was created. Use kubectl logs / kubectl exec for access, or enable
+service + ingress / virtualService in values when you need network exposure.
+{{- end }}
+
+{{- if .Values.persistence.enabled }}
+Persistent data path: {{ .Values.persistence.mountPath }}
+{{- end }}
+
+Useful commands:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -f
+  kubectl exec -n {{ .Release.Namespace }} deploy/{{ include "hermes-agent.fullname" . }} -- hermes version

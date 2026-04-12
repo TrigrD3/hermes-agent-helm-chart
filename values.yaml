@@ -1,0 +1,260 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: nousresearch/hermes-agent
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Args are appended to the built-in Hermes entrypoint (`exec hermes "$@"`).
+# Default: gateway mode for messaging / long-running deployments.
+args:
+  - gateway
+  - run
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+bootstrap:
+  enabled: true
+  # When true, copy Helm-rendered config files into the PVC on every start.
+  # When false, preserve any files already present in the PVC.
+  overwrite: true
+
+config:
+  # Optional raw YAML blob. When set, this overrides config.values entirely.
+  raw: ""
+  # Partial Hermes config merged with Hermes defaults at runtime.
+  # This chart only seeds common settings; users can add any valid Hermes
+  # config structure here.
+  values:
+    model:
+      default: anthropic/claude-sonnet-4.6
+      provider: auto
+      base_url: https://openrouter.ai/api/v1
+    agent:
+      max_turns: 60
+      gateway_timeout: 1800
+      restart_drain_timeout: 60
+      tool_use_enforcement: auto
+    terminal:
+      backend: local
+      cwd: .
+      timeout: 180
+    display:
+      tool_progress: all
+      interim_assistant_messages: true
+    logging:
+      level: INFO
+    browser:
+      inactivity_timeout: 120
+      command_timeout: 30
+      allow_private_urls: false
+    compression:
+      enabled: true
+      threshold: 0.5
+      target_ratio: 0.2
+      protect_last_n: 20
+    security:
+      redact_secrets: true
+      tirith_enabled: true
+      tirith_fail_open: true
+
+# Optional SOUL.md persona. Leave empty to use Hermes's default bootstrap file.
+soul:
+  text: ""
+
+secrets:
+  existingSecret: ""
+  OPENROUTER_API_KEY: ""
+  OPENAI_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+  GOOGLE_API_KEY: ""
+  GEMINI_API_KEY: ""
+  GLM_API_KEY: ""
+  KIMI_API_KEY: ""
+  MINIMAX_API_KEY: ""
+  MINIMAX_CN_API_KEY: ""
+  HF_TOKEN: ""
+  XIAOMI_API_KEY: ""
+  AI_GATEWAY_API_KEY: ""
+  NOUS_API_KEY: ""
+  EXA_API_KEY: ""
+  FIRECRAWL_API_KEY: ""
+  FAL_KEY: ""
+  GROQ_API_KEY: ""
+  VOICE_TOOLS_OPENAI_KEY: ""
+  API_SERVER_KEY: ""
+  TELEGRAM_BOT_TOKEN: ""
+  DISCORD_BOT_TOKEN: ""
+  SLACK_BOT_TOKEN: ""
+  SLACK_APP_TOKEN: ""
+  SIGNAL_HTTP_URL: ""
+  SIGNAL_ACCOUNT: ""
+  BROWSERBASE_API_KEY: ""
+  BROWSERBASE_PROJECT_ID: ""
+  HONCHO_API_KEY: ""
+  TINKER_API_KEY: ""
+  WANDB_API_KEY: ""
+  GITHUB_TOKEN: ""
+  SUDO_PASSWORD: ""
+  WEBHOOK_SECRET: ""
+  EMAIL_ADDRESS: ""
+  EMAIL_PASSWORD: ""
+  EMAIL_IMAP_HOST: ""
+  EMAIL_IMAP_PORT: ""
+  EMAIL_SMTP_HOST: ""
+  EMAIL_SMTP_PORT: ""
+  MISTRAL_API_KEY: ""
+  DINGTALK_CLIENT_ID: ""
+  DINGTALK_CLIENT_SECRET: ""
+  FEISHU_APP_ID: ""
+  FEISHU_APP_SECRET: ""
+  FEISHU_ENCRYPT_KEY: ""
+  FEISHU_VERIFICATION_TOKEN: ""
+  WECOM_BOT_ID: ""
+  WECOM_SECRET: ""
+  WECOM_CALLBACK_CORP_ID: ""
+  WECOM_CALLBACK_CORP_SECRET: ""
+  WECOM_CALLBACK_AGENT_ID: ""
+  WECOM_CALLBACK_TOKEN: ""
+  WECOM_CALLBACK_ENCODING_AES_KEY: ""
+  WEIXIN_ACCOUNT_ID: ""
+  WEIXIN_TOKEN: ""
+  BLUEBUBBLES_SERVER_URL: ""
+  BLUEBUBBLES_PASSWORD: ""
+
+env:
+  WEB_TOOLS_DEBUG: "false"
+  VISION_TOOLS_DEBUG: "false"
+  MOA_TOOLS_DEBUG: "false"
+  IMAGE_TOOLS_DEBUG: "false"
+  HERMES_HUMAN_DELAY_MODE: "off"
+  HERMES_HUMAN_DELAY_MIN_MS: "800"
+  HERMES_HUMAN_DELAY_MAX_MS: "2500"
+  GATEWAY_ALLOW_ALL_USERS: "false"
+  WHATSAPP_ENABLED: "false"
+  WHATSAPP_ALLOWED_USERS: ""
+  TELEGRAM_ALLOWED_USERS: ""
+  TELEGRAM_HOME_CHANNEL: ""
+  DISCORD_ALLOWED_USERS: ""
+  DISCORD_HOME_CHANNEL: ""
+  SLACK_ALLOWED_USERS: ""
+  SIGNAL_ALLOWED_USERS: ""
+  SIGNAL_GROUP_ALLOWED_USERS: ""
+
+apiServer:
+  enabled: false
+  host: "0.0.0.0"
+  port: 8642
+  corsOrigins: ""
+  modelName: hermes-agent
+
+probes:
+  enabled: true
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  startup:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 60
+    successThreshold: 1
+
+service:
+  enabled: false
+  type: ClusterIP
+  port: 8642
+  annotations: {}
+  labels: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: hermes.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+
+pdb:
+  enabled: false
+  minAvailable: 1
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+shmSize: 1Gi
+terminationGracePeriodSeconds: 120
+revisionHistoryLimit: 3
+strategy:
+  type: Recreate
+
+npmPackages: []
+
+podAnnotations: {}
+deploymentAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+extraEnv: {}
+extraEnvFrom: []
+extraVolumes: []
+extraVolumeMounts: []
+extraInitContainers: []
+extraContainers: []
