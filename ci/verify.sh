@@ -32,6 +32,19 @@ expect_fail() {
   echo "PASS: ${label}"
 }
 
+expect_render_contains() {
+  local label="$1"
+  local expected="$2"
+  local file="$3"
+
+  if ! grep -Fq "$expected" "$file"; then
+    echo "FAIL: ${label} missing expected render fragment: $expected"
+    return 1
+  fi
+
+  echo "PASS: ${label}"
+}
+
 cd "$ROOT_DIR"
 
 pass python3 -m json.tool values.schema.json >/dev/null
@@ -51,35 +64,80 @@ pass helm template hermes . -f ci/default-service-ports-values.yaml >"$TMP_DIR/d
 pass helm template hermes . -f ci/external-secret-values.yaml >"$TMP_DIR/external-secret.yaml"
 pass helm template hermes . -f ci/tenant-isolation-values.yaml >"$TMP_DIR/tenant-isolation.yaml"
 
-grep -q 'name: hermes-shared-bootstrap' "$TMP_DIR/external-bootstrap.yaml"
+expect_render_contains \
+  "external bootstrap fixture points at the external ConfigMap" \
+  'name: hermes-shared-bootstrap' \
+  "$TMP_DIR/external-bootstrap.yaml"
 if grep -q '^kind: ConfigMap$' "$TMP_DIR/external-bootstrap.yaml"; then
   echo "FAIL: external bootstrap fixture should not render a chart-managed ConfigMap"
   exit 1
 fi
 echo "PASS: external bootstrap fixture reuses an existing ConfigMap"
 
-grep -q 'name: api-server' "$TMP_DIR/default-service-ports.yaml"
-grep -q 'name: webhook' "$TMP_DIR/default-service-ports.yaml"
-grep -q 'name: telegram-webhook' "$TMP_DIR/default-service-ports.yaml"
+expect_render_contains \
+  "default service-port fixture renders api-server port" \
+  'name: api-server' \
+  "$TMP_DIR/default-service-ports.yaml"
+expect_render_contains \
+  "default service-port fixture renders webhook port" \
+  'name: webhook' \
+  "$TMP_DIR/default-service-ports.yaml"
+expect_render_contains \
+  "default service-port fixture renders telegram-webhook port" \
+  'name: telegram-webhook' \
+  "$TMP_DIR/default-service-ports.yaml"
 echo "PASS: default service-port fixture auto-derives common Hermes listener ports"
 
-grep -q 'apiVersion: external-secrets.io/' "$TMP_DIR/external-secret.yaml"
-grep -q '^kind: ExternalSecret$' "$TMP_DIR/external-secret.yaml"
-grep -q 'name: hermes-agent-external-secret' "$TMP_DIR/external-secret.yaml"
-grep -q 'name: platform-secrets' "$TMP_DIR/external-secret.yaml"
+expect_render_contains \
+  "external secret fixture renders ExternalSecret apiVersion" \
+  'apiVersion: external-secrets.io/' \
+  "$TMP_DIR/external-secret.yaml"
+expect_render_contains \
+  "external secret fixture renders ExternalSecret kind" \
+  'kind: ExternalSecret' \
+  "$TMP_DIR/external-secret.yaml"
+expect_render_contains \
+  "external secret fixture renders the target secret name" \
+  'name: hermes-agent-external-secret' \
+  "$TMP_DIR/external-secret.yaml"
+expect_render_contains \
+  "external secret fixture renders the SecretStore reference" \
+  'name: platform-secrets' \
+  "$TMP_DIR/external-secret.yaml"
 if grep -q '^kind: Secret$' "$TMP_DIR/external-secret.yaml"; then
   echo "FAIL: external secret fixture should render an ExternalSecret target instead of a chart-managed Secret"
   exit 1
 fi
 echo "PASS: external secret fixture renders first-class ExternalSecret support"
 
-grep -q 'hermes.nous.ai/tenant: tenant-a' "$TMP_DIR/tenant-isolation.yaml"
-grep -q 'name: hermes-multi-tenant-tenant-isolation' "$TMP_DIR/tenant-isolation.yaml"
-grep -q 'kubernetes.io/metadata.name: ingress-nginx' "$TMP_DIR/tenant-isolation.yaml"
-grep -q 'kubernetes.io/metadata.name: istio-system' "$TMP_DIR/tenant-isolation.yaml"
-grep -q 'external-dns.alpha.kubernetes.io/hostname: hermes.tenant-a.example.test' "$TMP_DIR/tenant-isolation.yaml"
-grep -q 'nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"' "$TMP_DIR/tenant-isolation.yaml"
-grep -q 'istio-system/tenant-gateway' "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture renders the tenant label" \
+  'tenant.hermes.ai/id: "tenant-a"' \
+  "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture renders the dedicated NetworkPolicy" \
+  'name: hermes-multi-tenant-tenant-isolation' \
+  "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture allows ingress-nginx traffic" \
+  'kubernetes.io/metadata.name: ingress-nginx' \
+  "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture allows istio-system traffic" \
+  'kubernetes.io/metadata.name: istio-system' \
+  "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture preserves external-dns Service annotations" \
+  'external-dns.alpha.kubernetes.io/hostname: hermes.tenant-a.example.test' \
+  "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture preserves ingress controller timeout annotations" \
+  'nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"' \
+  "$TMP_DIR/tenant-isolation.yaml"
+expect_render_contains \
+  "tenant-isolation fixture preserves Istio gateway configuration" \
+  'istio-system/tenant-gateway' \
+  "$TMP_DIR/tenant-isolation.yaml"
 echo "PASS: tenant-isolation fixture renders tenant isolation plus controller/ingress/Istio configuration"
 
 expect_fail \
