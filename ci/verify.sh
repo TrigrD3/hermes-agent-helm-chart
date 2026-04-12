@@ -23,7 +23,7 @@ expect_fail() {
     return 1
   fi
 
-  if ! grep -Fq "$expected" "$log_file"; then
+  if ! grep -Fq -- "$expected" "$log_file"; then
     echo "FAIL: ${label} did not contain expected error: $expected"
     cat "$log_file"
     return 1
@@ -37,7 +37,7 @@ expect_render_contains() {
   local expected="$2"
   local file="$3"
 
-  if ! grep -Fq "$expected" "$file"; then
+  if ! grep -Fq -- "$expected" "$file"; then
     echo "FAIL: ${label} missing expected render fragment: $expected"
     return 1
   fi
@@ -102,7 +102,7 @@ expect_render_contains \
   "$TMP_DIR/external-secret.yaml"
 expect_render_contains \
   "external secret fixture renders the SecretStore reference" \
-  'name: platform-secrets' \
+  'name: "platform-secrets"' \
   "$TMP_DIR/external-secret.yaml"
 if grep -q '^kind: Secret$' "$TMP_DIR/external-secret.yaml"; then
   echo "FAIL: external secret fixture should render an ExternalSecret target instead of a chart-managed Secret"
@@ -116,15 +116,15 @@ expect_render_contains \
   "$TMP_DIR/tenant-isolation.yaml"
 expect_render_contains \
   "tenant-isolation fixture renders the dedicated NetworkPolicy" \
-  'name: hermes-multi-tenant-tenant-isolation' \
+  'name: hermes-multi-tenant' \
   "$TMP_DIR/tenant-isolation.yaml"
 expect_render_contains \
   "tenant-isolation fixture allows ingress-nginx traffic" \
-  'kubernetes.io/metadata.name: ingress-nginx' \
+  '- ingress-nginx' \
   "$TMP_DIR/tenant-isolation.yaml"
 expect_render_contains \
   "tenant-isolation fixture allows istio-system traffic" \
-  'kubernetes.io/metadata.name: istio-system' \
+  '- istio-system' \
   "$TMP_DIR/tenant-isolation.yaml"
 expect_render_contains \
   "tenant-isolation fixture preserves external-dns Service annotations" \

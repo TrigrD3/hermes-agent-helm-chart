@@ -3,6 +3,7 @@
 {{- $serviceEnabled := .Values.service.enabled -}}
 {{- $apiServerEnabled := .Values.apiServer.enabled -}}
 {{- $servicePorts := include "hermes-agent.servicePorts" . | fromJsonArray -}}
+{{- $affinity := deepCopy (.Values.affinity | default dict) -}}
 {{- $npmEnabled := gt (len .Values.npmPackages) 0 -}}
 {{- $bootstrapConfigMapName := include "hermes-agent.bootstrapConfigMapName" . -}}
 {{- $bootstrapConfigPath := printf "/bootstrap/%s" .Values.bootstrap.configKey -}}
@@ -16,9 +17,6 @@
 {{- $secretManagedExternally := or .Values.externalSecret.enabled .Values.secrets.existingSecret -}}
 {{- if and (gt $replicas 1) .Values.persistence.enabled }}
 {{- fail "Hermes Agent supports only one replica when persistence.enabled=true because HERMES_HOME contains mutable shared state" }}
-{{- end }}
-{{- if and .Values.tenantIsolation.enabled (eq (trim .Values.tenant.id) "") }}
-{{- fail "tenantIsolation.enabled requires tenant.id" }}
 {{- end }}
 {{- if and .Values.externalSecret.enabled .Values.secrets.existingSecret }}
 {{- fail "externalSecret.enabled cannot be combined with secrets.existingSecret" }}
@@ -35,16 +33,8 @@
 {{- if and .Values.telegramWebhook.enabled (not $secretManagedExternally) (eq (printf "%v" .Values.secrets.TELEGRAM_BOT_TOKEN) "") }}
 {{- fail "telegramWebhook.enabled requires secrets.TELEGRAM_BOT_TOKEN when neither secrets.existingSecret nor externalSecret.enabled is set" }}
 {{- end }}
-{{- if and .Values.tenantIsolation.enabled (not .Values.tenantIsolation.tenantId) }}
-{{- fail "tenantIsolation.enabled=true requires tenantIsolation.tenantId" }}
-{{- end }}
-{{- if and .Values.tenantIsolation.enabled .Values.tenantIsolation.podAntiAffinity.enabled }}
-  {{- $tenantTerm := dict "topologyKey" .Values.tenantIsolation.podAntiAffinity.topologyKey "labelSelector" (dict "matchExpressions" (list (dict "key" (include "hermes-agent.tenantLabelKey" .) "operator" "In" "values" (list .Values.tenantIsolation.tenantId)))) -}}
-  {{- if eq .Values.tenantIsolation.podAntiAffinity.type "requiredDuringSchedulingIgnoredDuringExecution" }}
-    {{- $_ := set $affinity "podAntiAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" (list $tenantTerm)) -}}
-  {{- else }}
-    {{- $_ := set $affinity "podAntiAffinity" (dict "preferredDuringSchedulingIgnoredDuringExecution" (list (dict "weight" 100 "podAffinityTerm" $tenantTerm))) -}}
-  {{- end }}
+{{- if and .Values.tenantIsolation.enabled (not .Values.tenant.id) }}
+{{- fail "tenantIsolation.enabled=true requires tenant.id" }}
 {{- end }}
 {{- $npmHash := "" -}}
 {{- if $npmEnabled -}}
