@@ -16,7 +16,7 @@ This chart packages Hermes Agent for Kubernetes with cloud-native defaults, expl
 ## Quick start
 
 ```bash
-helm install hermes oci://<your-registry>/hermes-agent \
+helm install hermes . \
   --namespace hermes \
   --create-namespace
 ```
@@ -45,6 +45,15 @@ Hermes stores mutable data under `HERMES_HOME`, so this chart treats persistent 
 - `persistence.existingClaim` lets you bind to pre-provisioned storage without changing the single-replica rule
 
 If you need multiple Hermes instances, create **multiple releases** instead of scaling a single release horizontally.
+
+### Configuration model
+
+The chart exposes four main configuration layers:
+
+- `config.values`: structured YAML merged into a rendered `config.yaml`
+- `config.raw`: raw templated YAML that takes precedence over `config.values`
+- `env`, `extraEnv`, and `extraEnvFrom`: environment-level tuning and secrets/config injection
+- `command` / `args`: runtime entrypoint overrides when you need something other than the default gateway mode
 
 ### Runtime and bootstrap
 
