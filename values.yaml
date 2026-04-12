@@ -29,8 +29,8 @@ bootstrap:
   # When true, overwrite the persisted config/SOUL with Helm-rendered content.
   # When false, seed only if the file does not already exist in the PVC.
   overwrite: true
-  # Reuse a bootstrap ConfigMap created by another chart/operator instead of
-  # the chart-managed ConfigMap rendered from config.raw/config.values/soul.text.
+  # Optionally consume config bootstrap data from an externally managed
+  # ConfigMap instead of the chart-managed one.
   existingConfigMap: ""
   configKey: config.yaml
   soulKey: SOUL.md
