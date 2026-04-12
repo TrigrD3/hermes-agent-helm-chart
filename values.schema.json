@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "strategy": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Recreate", "RollingUpdate"]
+        }
+      }
+    },
+    "bootstrap": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "overwrite": { "type": "boolean" },
+        "existingConfigMap": { "type": "string" },
+        "configKey": { "type": "string", "minLength": 1 },
+        "soulKey": { "type": "string", "minLength": 1 }
+      }
+    },
+    "apiServer": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "$ref": "#/definitions/portNumber" },
+        "corsOrigins": { "type": "string" },
+        "modelName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "webhook": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "port": { "$ref": "#/definitions/portNumber" }
+      }
+    },
+    "telegramWebhook": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "url": { "type": "string" },
+        "port": { "$ref": "#/definitions/portNumber" }
+      }
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"]
+        },
+        "sessionAffinity": {
+          "type": "string",
+          "enum": ["None", "ClientIP"]
+        },
+        "externalTrafficPolicy": {
+          "type": "string",
+          "enum": ["", "Cluster", "Local"]
+        },
+        "internalTrafficPolicy": {
+          "type": "string",
+          "enum": ["", "Cluster", "Local"]
+        },
+        "loadBalancerSourceRanges": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "ports": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/servicePort" }
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "servicePortNumber": {
+          "anyOf": [
+            { "$ref": "#/definitions/portNumber" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "virtualService": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "gateways": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "hosts": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "servicePortNumber": {
+          "anyOf": [
+            { "$ref": "#/definitions/portNumber" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "existingClaim": { "type": "string" },
+        "mountPath": { "type": "string", "minLength": 1 },
+        "accessMode": {
+          "type": "string",
+          "enum": ["ReadWriteOnce", "ReadWriteMany", "ReadOnlyMany", "ReadWriteOncePod"]
+        },
+        "size": { "type": "string", "minLength": 1 }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "properties": {
+        "existingSecret": { "type": "string" },
+        "API_SERVER_KEY": { "type": "string" },
+        "TELEGRAM_BOT_TOKEN": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "persistence": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "replicaCount": { "const": 1 },
+          "strategy": {
+            "type": "object",
+            "properties": {
+              "type": { "const": "Recreate" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "service": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "service": {
+                "type": "object",
+                "properties": {
+                  "ports": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "apiServer": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "const": true }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "webhook": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "const": true }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telegramWebhook": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "const": true }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ingress": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "service": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "virtualService": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "service": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          },
+          "virtualService": {
+            "type": "object",
+            "properties": {
+              "gateways": { "minItems": 1 },
+              "hosts": { "minItems": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "telegramWebhook": {
+            "type": "object",
+            "properties": {
+              "enabled": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "telegramWebhook": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "portNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "servicePort": {
+      "type": "object",
+      "required": ["port"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "port": { "$ref": "#/definitions/portNumber" },
+        "targetPort": {
+          "anyOf": [
+            { "$ref": "#/definitions/portNumber" },
+            { "type": "string", "minLength": 1 }
+          ]
+        },
+        "containerPort": { "$ref": "#/definitions/portNumber" },
+        "protocol": {
+          "type": "string",
+          "enum": ["TCP", "UDP", "SCTP"]
+        },
+        "appProtocol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "nodePort": {
+          "type": "integer",
+          "minimum": 30000,
+          "maximum": 32767
+        }
+      }
+    }
+  }
+}

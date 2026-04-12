@@ -34,26 +34,30 @@ expect_fail() {
 
 cd "$ROOT_DIR"
 
-pass python -m json.tool values.schema.json >/dev/null
+pass python3 -m json.tool values.schema.json >/dev/null
 pass bash -n ci/verify.sh
 pass helm lint .
 pass helm lint . -f ci/test-values.yaml
 pass helm lint . -f ci/existing-claim-values.yaml
 pass helm lint . -f ci/external-bootstrap-values.yaml
+pass helm lint . -f ci/default-service-ports-values.yaml
 pass helm template hermes . >"$TMP_DIR/default.yaml"
 pass helm template hermes . -f ci/test-values.yaml >"$TMP_DIR/test-values.yaml"
 pass helm template hermes . -f ci/existing-claim-values.yaml >"$TMP_DIR/existing-claim.yaml"
 pass helm template hermes . -f ci/external-bootstrap-values.yaml >"$TMP_DIR/external-bootstrap.yaml"
+pass helm template hermes . -f ci/default-service-ports-values.yaml >"$TMP_DIR/default-service-ports.yaml"
 
-grep -q 'name: api-server' "$TMP_DIR/external-bootstrap.yaml"
-grep -q 'name: webhook' "$TMP_DIR/external-bootstrap.yaml"
-grep -q 'name: telegram-webhook' "$TMP_DIR/external-bootstrap.yaml"
 grep -q 'name: hermes-shared-bootstrap' "$TMP_DIR/external-bootstrap.yaml"
 if grep -q '^kind: ConfigMap$' "$TMP_DIR/external-bootstrap.yaml"; then
   echo "FAIL: external bootstrap fixture should not render a chart-managed ConfigMap"
   exit 1
 fi
-echo "PASS: external bootstrap fixture reuses an existing ConfigMap and auto-derives service ports"
+echo "PASS: external bootstrap fixture reuses an existing ConfigMap"
+
+grep -q 'name: api-server' "$TMP_DIR/default-service-ports.yaml"
+grep -q 'name: webhook' "$TMP_DIR/default-service-ports.yaml"
+grep -q 'name: telegram-webhook' "$TMP_DIR/default-service-ports.yaml"
+echo "PASS: default service-port fixture auto-derives common Hermes listener ports"
 
 expect_fail \
   "telegram webhook URL required" \
