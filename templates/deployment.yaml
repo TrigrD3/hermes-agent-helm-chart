@@ -2,12 +2,17 @@
 {{- $mountPath := .Values.persistence.mountPath -}}
 {{- $serviceEnabled := .Values.service.enabled -}}
 {{- $apiServerEnabled := .Values.apiServer.enabled -}}
-{{- $servicePorts := include "hermes-agent.effectiveServicePorts" . | fromYamlArray -}}
-{{- $containerPorts := list -}}
-{{- if $serviceEnabled -}}
-  {{- $containerPorts = $servicePorts -}}
-{{- else -}}
-  {{- $containerPorts = include "hermes-agent.defaultExposedPorts" . | fromYamlArray -}}
+{{- $servicePorts := .Values.service.ports -}}
+{{- if eq (len $servicePorts) 0 -}}
+  {{- if .Values.apiServer.enabled -}}
+    {{- $servicePorts = append $servicePorts (dict "name" "api-server" "port" (.Values.apiServer.port | int) "targetPort" (.Values.apiServer.port | int) "containerPort" (.Values.apiServer.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+  {{- if .Values.webhook.enabled -}}
+    {{- $servicePorts = append $servicePorts (dict "name" "webhook" "port" (.Values.webhook.port | int) "targetPort" (.Values.webhook.port | int) "containerPort" (.Values.webhook.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+  {{- if .Values.telegramWebhook.enabled -}}
+    {{- $servicePorts = append $servicePorts (dict "name" "telegram-webhook" "port" (.Values.telegramWebhook.port | int) "targetPort" (.Values.telegramWebhook.port | int) "containerPort" (.Values.telegramWebhook.port | int) "protocol" "TCP") -}}
+  {{- end -}}
 {{- end -}}
 {{- $npmEnabled := gt (len .Values.npmPackages) 0 -}}
 {{- $bootstrapConfigMapName := include "hermes-agent.bootstrapConfigMapName" . -}}
@@ -234,10 +239,16 @@ spec:
           {{- end }}
           {{- if gt (len $containerPorts) 0 }}
           ports:
-            {{- range $i, $port := $containerPorts }}
+            {{- if $serviceEnabled }}
+            {{- range $i, $port := $servicePorts }}
             - name: {{ default (printf "port-%d" $i) $port.name }}
               containerPort: {{- if hasKey $port "containerPort" }} {{ $port.containerPort | int }}{{- else if and (hasKey $port "targetPort") (not (kindIs "string" $port.targetPort)) }} {{ $port.targetPort | int }}{{- else }} {{ $port.port | int }}{{- end }}
               protocol: {{ default "TCP" $port.protocol }}
+            {{- end }}
+            {{- else if $apiServerEnabled }}
+            - name: api-server
+              containerPort: {{ .Values.apiServer.port }}
+              protocol: TCP
             {{- end }}
           {{- end }}
           {{- with .Values.probes.liveness }}
