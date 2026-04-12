@@ -1,4 +1,4 @@
-{{- if and .Values.bootstrap.enabled (not .Values.bootstrap.existingConfigMap) }}
+{{- if not .Values.bootstrap.existingConfigMap }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

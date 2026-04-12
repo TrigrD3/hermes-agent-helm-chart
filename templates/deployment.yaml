@@ -68,10 +68,10 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        {{- if and .Values.bootstrap.enabled (not .Values.bootstrap.existingConfigMap) }}
+        {{- if .Values.bootstrap.existingConfigMap }}
+        checksum/config: {{ printf "%s|%s|%s" .Values.bootstrap.existingConfigMap .Values.bootstrap.configKey .Values.bootstrap.soulKey | sha256sum }}
+        {{- else }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        {{- else if .Values.bootstrap.enabled }}
-        checksum/bootstrap-source: {{ printf "%s|%s|%s|%t" (include "hermes-agent.bootstrapConfigMapName" .) .Values.bootstrap.configKey .Values.bootstrap.soulKey .Values.bootstrap.overwrite | sha256sum }}
         {{- end }}
         {{- if not .Values.secrets.existingSecret }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
@@ -237,7 +237,7 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- end }}
-          {{- if gt (len $containerPorts) 0 }}
+          {{- if or (and $serviceEnabled (gt (len $servicePorts) 0)) $apiServerEnabled }}
           ports:
             {{- if $serviceEnabled }}
             {{- range $i, $port := $servicePorts }}
@@ -293,8 +293,7 @@ spec:
         {{- if .Values.bootstrap.enabled }}
         - name: bootstrap
           configMap:
-            name: {{ include "hermes-agent.bootstrapConfigMapName" . }}
-        {{- end }}
+            name: {{ $bootstrapConfigMapName }}
         - name: tmp
           emptyDir: {}
         {{- if .Values.browser.shm.enabled }}

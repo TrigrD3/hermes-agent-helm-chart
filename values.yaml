@@ -29,9 +29,11 @@ bootstrap:
   # When true, overwrite the persisted config/SOUL with Helm-rendered content.
   # When false, seed only if the file does not already exist in the PVC.
   overwrite: true
-  # Optional external ConfigMap containing config.yaml and optionally SOUL.md.
-  # When set, the chart should mount this instead of the chart-managed bootstrap ConfigMap.
+  # Optionally consume config bootstrap data from an externally managed
+  # ConfigMap instead of the chart-managed one.
   existingConfigMap: ""
+  configKey: config.yaml
+  soulKey: SOUL.md
 
 config:
   # Raw YAML string rendered via tpl. When non-empty, it takes precedence over

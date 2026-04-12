@@ -45,11 +45,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "hermes-agent.bootstrapConfigMapName" -}}
-{{- if .Values.bootstrap.existingConfigMap -}}
-{{- .Values.bootstrap.existingConfigMap -}}
-{{- else -}}
-{{- include "hermes-agent.configMapName" . -}}
-{{- end -}}
+{{- default (include "hermes-agent.configMapName" .) .Values.bootstrap.existingConfigMap -}}
 {{- end -}}
 
 {{- define "hermes-agent.secretName" -}}
@@ -80,6 +76,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if and .Values.service.enabled (gt (len $servicePorts) 0) -}}
 {{- (index $servicePorts 0).port -}}
 {{- else -}}
-{{- fail "service.enabled=true with at least one effective service port is required for ingress or virtualService routing" -}}
+{{- fail "service.enabled=true with either explicit service.ports entries or enabled apiServer/webhook/telegramWebhook ports is required for ingress or virtualService routing" -}}
 {{- end -}}
 {{- end -}}
