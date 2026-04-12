@@ -53,10 +53,10 @@ service:
   enabled: true
 ```
 
-When `service.enabled=true` and `service.ports` is left empty, the chart
-automatically exposes `apiServer`, `webhook`, and `telegramWebhook` listeners
-that are enabled, using their configured port values. Keep `service.ports`
-only for custom/extra service mappings.
+If `service.ports` is left empty, the chart can derive default Service ports from
+the enabled `apiServer`, `webhook`, and `telegramWebhook` listeners. Keep
+explicit `service.ports` when you need custom mappings such as `port: 80` to
+`targetPort: 8642`.
 
 ## Webhooks and Telegram webhook mode
 
@@ -84,6 +84,7 @@ This chart is intentionally open-ended so it can integrate with other Helm chart
 
 - `secrets.existingSecret` — consume credentials managed by External Secrets, Vault, Sealed Secrets, or another chart
 - `persistence.existingClaim` — reuse storage created elsewhere
+- `bootstrap.existingConfigMap` — consume externally managed `config.yaml` / `SOUL.md` content instead of a chart-managed bootstrap ConfigMap
 - `extraEnvFrom` — import ConfigMaps/Secrets produced by another release
 - `extraVolumes` / `extraVolumeMounts` — attach config, credentials, or shared storage from other workloads
 - `extraInitContainers` / `extraContainers` — add sidecars, bootstrap jobs, or service mesh helpers
@@ -100,11 +101,33 @@ bootstrap:
   existingConfigMap: hermes-shared-bootstrap
 ```
 
+Example: use bootstrap content managed by another chart or operator:
+
+```yaml
+bootstrap:
+  existingConfigMap: hermes-shared-bootstrap
+
+secrets:
+  existingSecret: hermes-shared-secrets
+
+apiServer:
+  enabled: true
+
+service:
+  enabled: true
+```
+
+When `bootstrap.existingConfigMap` is used, the referenced ConfigMap should
+contain `config.yaml` and may optionally include `SOUL.md`. Because the content
+is managed outside this chart, operators should also plan how rollout/restart
+should happen when that external ConfigMap changes.
+
 ## Operational notes
 
 - Keep `replicaCount: 1` when persistence is enabled.
 - Hermes state lives under `persistence.mountPath` (`/opt/data` by default).
 - `bootstrap.overwrite=true` makes Helm the source of truth for `config.yaml` and `SOUL.md`.
+- `values.schema.json` adds machine-readable checks for persistence safety, required secrets, ingress/virtual service prerequisites, and service exposure inputs before templates render.
 - `npmPackages` installs packages into the PVC and exposes them via `PATH`/`NODE_PATH`.
 - Enable `service.enabled` only when you actually want network exposure.
 - Enable `rbac.create` only when Hermes needs in-cluster Kubernetes access.
@@ -117,8 +140,13 @@ This repo includes `ci/test-values.yaml` for render checks:
 ```bash
 helm lint .
 helm lint . -f ci/test-values.yaml
-helm lint . -f ci/external-bootstrap-values.yaml
+helm lint . -f ci/existing-claim-values.yaml
 helm template hermes .
 helm template hermes . -f ci/test-values.yaml
-./ci/verify.sh
+helm template hermes . -f ci/existing-claim-values.yaml
+
+# schema-focused negative checks
+! helm lint . -f ci/invalid-persistence-values.yaml
+! helm lint . -f ci/invalid-service-values.yaml
+! helm lint . -f ci/invalid-telegram-values.yaml
 ```

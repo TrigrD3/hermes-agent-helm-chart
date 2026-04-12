@@ -29,11 +29,9 @@ bootstrap:
   # When true, overwrite the persisted config/SOUL with Helm-rendered content.
   # When false, seed only if the file does not already exist in the PVC.
   overwrite: true
-  # Reuse a bootstrap ConfigMap created by another chart/operator instead of
-  # the chart-managed ConfigMap rendered from config.raw/config.values/soul.text.
+  # Optional external ConfigMap containing config.yaml and optionally SOUL.md.
+  # When set, the chart should mount this instead of the chart-managed bootstrap ConfigMap.
   existingConfigMap: ""
-  configKey: config.yaml
-  soulKey: SOUL.md
 
 config:
   # Raw YAML string rendered via tpl. When non-empty, it takes precedence over
@@ -221,6 +219,8 @@ service:
   #     targetPort: 8642
   #     containerPort: 8642
   #     protocol: TCP
+  # When empty and service.enabled=true, the chart can derive Service ports from
+  # enabled apiServer/webhook/telegramWebhook listeners.
   ports: []
 
 ingress:
