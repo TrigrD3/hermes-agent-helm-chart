@@ -194,32 +194,25 @@ secrets:
   existingSecret: hermes-tenant-a-secrets
 ```
 
-Example rendering an `ExternalSecret` through `extraObjects`:
+Example rendering the chart's first-class `ExternalSecret`:
 
 ```yaml
-secrets:
-  existingSecret: hermes-tenant-a-secrets
-
-extraObjects:
-  - apiVersion: external-secrets.io/v1beta1
-    kind: ExternalSecret
-    metadata:
-      name: hermes-tenant-a-secrets
-    spec:
-      refreshInterval: 1h
-      secretStoreRef:
-        kind: ClusterSecretStore
-        name: platform-secrets
-      target:
-        name: hermes-tenant-a-secrets
-      data:
-        - secretKey: OPENROUTER_API_KEY
-          remoteRef:
-            key: tenants/tenant-a/hermes
-            property: OPENROUTER_API_KEY
+externalSecret:
+  enabled: true
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: platform-secrets
+  target:
+    name: hermes-tenant-a-secrets
+  data:
+    - secretKey: OPENROUTER_API_KEY
+      remoteRef:
+        key: tenants/tenant-a/hermes
+        property: OPENROUTER_API_KEY
 ```
 
-This keeps secret delivery under your platform's preferred operator while letting the chart consume a normal Kubernetes Secret.
+If your platform already manages the `ExternalSecret` object elsewhere, keep using `secrets.existingSecret` or `extraObjects` and let the chart consume the resulting Kubernetes Secret.
 
 ## Service exposure, ingress, and Istio
 
@@ -337,12 +330,16 @@ helm lint . -f ci/test-values.yaml
 helm lint . -f ci/existing-claim-values.yaml
 helm lint . -f ci/external-bootstrap-values.yaml
 helm lint . -f ci/default-service-ports-values.yaml
+helm lint . -f ci/external-secret-values.yaml
+helm lint . -f ci/tenant-isolation-values.yaml
+helm lint . -f ci/operator-values.yaml
 helm template hermes .
 helm template hermes . -f ci/test-values.yaml
 helm template hermes . -f ci/existing-claim-values.yaml
 helm template hermes . -f ci/external-bootstrap-values.yaml
 helm template hermes . -f ci/default-service-ports-values.yaml
+helm template hermes . -f ci/external-secret-values.yaml
+helm template hermes . -f ci/tenant-isolation-values.yaml
+helm template hermes . --include-crds -f ci/operator-values.yaml
 bash ci/verify.sh
 ```
-
-Planned operator-ready coverage for this pass should also include a dedicated operator fixture (for example `ci/operator-values.yaml`) plus matching `helm lint` / `helm template` checks once those manifests land.

@@ -65,6 +65,7 @@ pass helm template hermes . -f ci/default-service-ports-values.yaml >"$TMP_DIR/d
 pass helm template hermes . -f ci/external-secret-values.yaml >"$TMP_DIR/external-secret.yaml"
 pass helm template hermes . -f ci/tenant-isolation-values.yaml >"$TMP_DIR/tenant-isolation.yaml"
 pass helm template hermes . -f ci/operator-values.yaml >"$TMP_DIR/operator.yaml"
+pass helm template hermes . --include-crds -f ci/operator-values.yaml >"$TMP_DIR/operator-with-crds.yaml"
 
 expect_render_contains \
   "external bootstrap fixture points at the external ConfigMap" \
@@ -150,7 +151,9 @@ if grep -q '^kind: Deployment$' "$TMP_DIR/operator.yaml"; then
   exit 1
 fi
 echo "PASS: operator fixture renders CRs without direct workload resources"
-
+expect_render_contains   "operator include-crds render includes HermesTenant CRD"   'kind: CustomResourceDefinition'   "$TMP_DIR/operator-with-crds.yaml"
+expect_render_contains   "operator include-crds render includes hermestenants.hermes.ai"   'name: hermestenants.hermes.ai'   "$TMP_DIR/operator-with-crds.yaml"
+echo "PASS: operator fixture includes the CRD when rendered with --include-crds"
 
 expect_fail \
   "telegram webhook URL required" \
@@ -181,3 +184,8 @@ expect_fail \
   "tenant isolation requires tenant id" \
   "tenant.id" \
   helm lint . -f ci/tenant-isolation-values.yaml --set tenant.id=
+
+expect_fail \
+  "operator mode requires controller class" \
+  "operator.controllerClass" \
+  helm lint . -f ci/operator-values.yaml --set operator.controllerClass=
