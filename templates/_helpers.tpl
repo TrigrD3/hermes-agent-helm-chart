@@ -44,6 +44,10 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s-config" (include "hermes-agent.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{- define "hermes-agent.bootstrapConfigMapName" -}}
+{{- default (include "hermes-agent.configMapName" .) .Values.bootstrap.existingConfigMap -}}
+{{- end -}}
+
 {{- define "hermes-agent.secretName" -}}
 {{- if .Values.secrets.existingSecret -}}
 {{- .Values.secrets.existingSecret -}}
@@ -56,10 +60,29 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s-data" (include "hermes-agent.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "hermes-agent.primaryServicePortNumber" -}}
-{{- if and .Values.service.enabled (gt (len .Values.service.ports) 0) -}}
-{{- (index .Values.service.ports 0).port -}}
+{{- define "hermes-agent.servicePorts" -}}
+{{- $ports := list -}}
+{{- if gt (len .Values.service.ports) 0 -}}
+  {{- $ports = .Values.service.ports -}}
 {{- else -}}
-{{- fail "service.enabled=true with at least one service.ports entry is required for ingress or virtualService routing" -}}
+  {{- if .Values.apiServer.enabled -}}
+    {{- $ports = append $ports (dict "name" "api-server" "port" (.Values.apiServer.port | int) "targetPort" (.Values.apiServer.port | int) "containerPort" (.Values.apiServer.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+  {{- if .Values.webhook.enabled -}}
+    {{- $ports = append $ports (dict "name" "webhook" "port" (.Values.webhook.port | int) "targetPort" (.Values.webhook.port | int) "containerPort" (.Values.webhook.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+  {{- if .Values.telegramWebhook.enabled -}}
+    {{- $ports = append $ports (dict "name" "telegram-webhook" "port" (.Values.telegramWebhook.port | int) "targetPort" (.Values.telegramWebhook.port | int) "containerPort" (.Values.telegramWebhook.port | int) "protocol" "TCP") -}}
+  {{- end -}}
+{{- end -}}
+{{- $ports | toJson -}}
+{{- end -}}
+
+{{- define "hermes-agent.primaryServicePortNumber" -}}
+{{- $servicePorts := include "hermes-agent.servicePorts" . | fromJson -}}
+{{- if and .Values.service.enabled (gt (len $servicePorts) 0) -}}
+{{- (index $servicePorts 0).port -}}
+{{- else -}}
+{{- fail "service.enabled=true with either explicit service.ports entries or enabled apiServer/webhook/telegramWebhook ports is required for ingress or virtualService routing" -}}
 {{- end -}}
 {{- end -}}
