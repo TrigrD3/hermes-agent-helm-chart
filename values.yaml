@@ -3,7 +3,7 @@ fullnameOverride: ""
 
 image:
   repository: nousresearch/hermes-agent
-  tag: "0.8.0"
+  tag: "v2026.7.20"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -42,7 +42,7 @@ config:
   # Partial Hermes config.yaml written into HERMES_HOME/config.yaml.
   values:
     model:
-      default: anthropic/claude-opus-4.6
+      default: stepfun/step-3.7-flash:free
       provider: auto
       base_url: https://openrouter.ai/api/v1
     agent:
@@ -92,6 +92,8 @@ env:
   SLACK_ALLOWED_USERS: ""
   SIGNAL_ALLOWED_USERS: ""
   SIGNAL_GROUP_ALLOWED_USERS: ""
+  HERMES_UID: "1000"
+  HERMES_GID: "1000"
 
 extraEnv: []
 extraEnvFrom: []
@@ -323,20 +325,19 @@ deploymentAnnotations: {}
 podLabels: {}
 
 podSecurityContext:
-  runAsUser: 1000
+  runAsUser: 0
   runAsGroup: 1000
   fsGroup: 1000
   fsGroupChangePolicy: OnRootMismatch
-  runAsNonRoot: true
+  runAsNonRoot: false
   seccompProfile:
     type: RuntimeDefault
 
 securityContext:
-  allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: true
+  readOnlyRootFilesystem: false
   capabilities:
-    drop:
-      - ALL
+    drop: []
   seccompProfile:
     type: RuntimeDefault
 
